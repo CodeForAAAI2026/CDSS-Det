@@ -1,0 +1,11 @@
+tqdm==4.62.3
+monai==1.0.0 # monai==0.7.0
+batchgenerators==0.23
+pyyaml==6.0
+SimpleITK==2.1.1
+nibabel==3.2.1
+tensorboard
+matplotlib
+# swin
+timm==0.4.12
+einops==0.3.2

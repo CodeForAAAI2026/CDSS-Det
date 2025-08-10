@@ -1,0 +1,236 @@
+# Config file for msa-def-DETR
+
+
+# General training
+experiment_name: aaai_ts_fullsup
+resume: False # True to resume from last checkpoint
+device: cuda:0
+debug_mode: False  # Doesn't save checkpoints
+seed: 10
+val_interval: 1 # Validation interval
+
+epochs: 2500 #1000 optimal
+lr: 2e-4
+lr_backbone: 2e-4
+lr_linear_proj_mult: 0.1
+weight_decay: 1e-4
+clip_max_norm: 0.1   # Not used
+log_grad: True
+log_grad_every_epoch: 10
+
+# pretrain
+use_pretrain_pipeline: False
+label_pretrain_stop_epoch: 5    # 1. Use only label target in order to generate good pseudo labels
+pseudo_pretrain_stop_epoch: 100  # 2. Use only pesudo labels to avoid performance drops in merge training
+# fine_tune_epoch: 2500     # 3. Use only label to fine-tune the final model
+
+# Gradient accumulation
+gradient_accu: False
+gradient_accu_iter: 4
+
+# Scheduler
+lr_drop: 500
+lr_gamma: 0.1 # default = 0.1
+
+# pre-trained model & replay
+replay: False
+replay_samples_file: replay_samples.pkl
+use_pre_trained_model: False
+old_model_path: model_best_0.825_in_ep585.pt 
+top_k_source: 31
+
+# log and results
+log_path: aaai
+
+# Data
+dataset: total_segmentator_224_224_256_CT_AAAI
+split: train
+source_dataset_dir: total_segmentator_224_224_256_CT_AAAI
+target_dataset_dir: total_segmentator_224_224_256_CT_AAAI
+source_split: train # for replay
+overfit: False # Use same set consisting of one image for train and val
+bbox_padding: 1
+
+# Dataloader
+batch_size: 2
+source_batch_size: 1 
+target_labeled_batch_size: 1 
+target_unlabeled_batch_size: 1 
+shuffle: True
+num_workers: 10 # 10 (normal, 1 lower 80GB GPU)
+ 
+
+# Hungarian matching
+set_cost_class: 2
+set_cost_bbox: 5
+set_cost_giou: 2
+dense_matching: True #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+dense_matching_lambda: 0.5
+class_matching: False
+class_matching_query_split: [10,20,20,30,20] # 10 for liver, 30 for pancreas, 20 for each other organ
+
+
+# Losses
+focal_loss: False
+loss_coefs:
+  # supervised
+  cls: 2      # Detection
+  bbox: 5
+  giou: 2
+  segce: 2    # Segmentation proxy
+  segdice: 2
+  # pixpro
+  pixpro: 0
+  # source-target alignment
+  asy: 0
+  # source-target discriminator
+  srcdom: 0   # source domain loss
+  tgtdom: 0   # target domain loss
+  # pseudo cls
+  pseudocls: 0 
+
+
+# Model specific params
+backbone:
+  name: msavit
+
+  # Standard params
+  msa: True
+  in_channels: 1  #  Input channels 
+  start_channels: 32  # Channels after first encoder block
+  bias: False
+  norm_type: instance
+  data_size: [224, 224, 256] 
+
+  
+  # Standard params
+  fpn_channels: 192 # Final output channels (384 original, 288 reduced params)
+  out_fmaps: [P4, P3, P2]  # P0, P1, P2, P3, P4, P5
+
+  kernel_size: 3
+  patch_size: 2
+  mlp_ratio: 2
+  num_heads: 32
+  depths: 1
+  drop_path_rate: 0.0
+  attn_drop_rate: 0.0
+  drop_rate: 0.0
+  qkv_bias: True
+  cuda: 0
+  bias: False
+
+
+  # Segmentation proxy loss
+  num_organs: 5
+  use_msa_seg_loss: True #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+  fg_bg: False
+  use_seg_proxy_loss: False  # never use it with msa
+
+
+
+neck:
+  name: def_detr
+  use_encoder: True 
+  input_level: P2
+  num_feature_levels: 3
+
+  pos_encoding: sine
+  hidden_dim: 192 # (384 original, 288 reduced params)
+  dropout: 0.1
+  nheads: 6
+  dim_feedforward: 1024
+  enc_layers: 3
+  dec_layers: 3
+  enc_n_points: 4
+  dec_n_points: 4
+  num_queries: 100
+  aux_loss: False
+  use_cuda: False
+  two_stage: False
+  box_refine: False
+
+  # contrastive learning params
+  contrastive:
+    enabled: False # False in this study
+    mom: 0.999
+    dim: 256
+    eqco: 1000
+    tau: 0.7
+    loss_coeff: 0.2
+
+  dn:
+    type: cdn # Remember to add this to the model
+    enabled: False # True
+    multiscale: True
+    dn_number: 50  # number of dn groups 
+    dn_box_noise_ratio: 0.
+    multiscale_box_noise_ratio_max: 0.4  #it is necessary if multi_scale is true
+    dn_label_noise_ratio: 0. 
+    multiscale_label_noise_ratio_max: 0.2 #it is necessary if multi_scale is true
+
+# Augmentation
+augmentation:
+  use_augmentation: True
+  patch_size: [224, 224, 256] 
+
+
+  p_gaussian_noise: 0
+  p_gaussian_smooth: 0
+  p_intensity_scale: 0.5
+  p_intensity_shift: 0.5
+  p_adjust_contrast: 0
+  p_rotate: 0.5
+  p_zoom: 0.5
+  p_shear: 0
+  p_translate: 0.5
+  p_flip: 0
+
+  gaussian_noise_mean: 0.0
+  gaussian_noise_std: 0.1
+  gaussian_smooth_sigma: [0.5, 1.0]
+
+  intensity_scale_factors: 0.1
+  intensity_shift_offsets: 0.1
+
+  adjust_contrast_gamma: [0.7, 1.5]
+
+  rotation: [-5, 5]
+  min_zoom: 0.9
+  max_zoom: 1.1
+  translate_precentage: 10
+  shear_range: [0.1, 0.1, 0.1]
+  flip_axis: [0, 1, 2]
+  
+  #pixpro
+  crop_size: [192, 192, 128]
+
+  # unlabeled weak strong augmentation
+  weak_strong_unlabeled: False
+
+# target label
+use_target_label: False
+
+# discriminator
+domain_loss: False
+
+# pseudo labels
+pseudo_label: False
+pseudo_batch_size: 1
+pseudo_label_threshold: 0.8
+pseudo_start_ema_epoch: 1
+pseudo_ema_keep_rate: 0.9996
+pseudo_nms_iou_threshold: 0.5
+
+
+pixpro:
+  use_pixpro: False
+  pixpro_p: 2
+  pixpro_momentum: 0.99
+  pixpro_pos_ratio: 0.5
+  pixpro_clamp_value: 0.0 
+  pixpro_transform_layer: 1
+  pixpro_ins_loss_weight: 0.0
+  batch_size: 1
+  same_mlp: False
+  same_encoder: True
+  num_feat: 1
